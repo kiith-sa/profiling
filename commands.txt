@@ -1,0 +1,40 @@
+Debug build:
+  g++ cfg.cpp -std=c++11 -g -o cfg
+Profiling build: 
+  g++ cfg.cpp -std=c++11 -g -O2 -fno-inline -o cfg
+"Release" build:
+  g++ cfg.cpp -std=c++11 -g -O2 -o cfg
+
+Parse small.cfg 10000 times:
+  ./cfg small.cfg 10000
+Parse huge.cfg 10 times:
+  ./cfg huge.cfg 10
+
+Time:
+  time ./cfg small.cfg 1000
+
+Callgrind:
+  valgrind --tool=callgrind ./cfg huge.cfg 1
+KCachegrind to view a Callgrind dump (NUMBER - higher is newer):
+  kcachegrind callgrind.out.NUMBER
+
+
+Perf list (duh):
+  perf list
+
+Perf stat (default):
+  perf stat ./cfg huge.cfg 10
+Perf stat with (pretty much) everything:
+  perf stat -e task-clock,cycles,instructions,branches,branch-misses,L1-dcache-load-misses,L1-dcache-store-misses,L1-icache-load-misses,L1-dcache-prefetch-misses,cache-references,cache-misses,stalled-cycles-frontend ./cfg huge.cfg 10
+
+Perf record (default):
+  perf record -gF10000 ./cfg huge.cfg 10
+Perf record with everything (NOTE: relative event counts are not precise):
+  perf record -gF10000 -e cycles,instructions,branches,branch-misses,cache-references,cache-misses,L1-dcache-load-misses,L1-dcache-store-misses,L1-icache-load-misses,L1-dcache-prefetch-misses,stalled-cycles-frontend ./cfg huge.cfg 10
+
+Long-duration ./cfg run to test Perf top:
+  ./cfg huge.cfg 20000
+Perf top (default):
+  perf top -F10000
+Perf top with everything (run as root):
+  perf top -F10000 -e cycles,instructions,branches,branch-misses,cache-references,cache-misses,L1-dcache-load-misses,L1-dcache-store-misses,L1-icache-load-misses,L1-dcache-prefetch-misses,stalled-cycles-frontend

@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+
+
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Profiling &mdash; Profiling 2014.10.26 documentation</title>
+    
+    <link rel="stylesheet" href="_static/basic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/styles.css" type="text/css" />
+    <link rel="stylesheet" href="_static/slides.css" type="text/css" />
+    
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    
+
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2014.10.26',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/common.js"></script>
+    <script type="text/javascript" src="_static/slides.js"></script>
+    <script type="text/javascript" src="_static/sync.js"></script>
+    <script type="text/javascript" src="_static/controller.js"></script>
+    <script type="text/javascript" src="_static/init.js"></script>
+    
+    <link rel="top" title="Profiling 2014.10.26 documentation" href="#" /> 
+  </head>
+  <body>
+
+<section
+   id="slide_container"
+   class='slides layout-regular'>
+
+
+  <article class="slide level-1" id="profiling">
+<h1>Profiling</h1>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Author:</th><td class="field-body">Ferdinand Majerech</td>
+</tr>
+</tbody>
+</table>
+
+</article>
+<article class="slide level-2" id="intro">
+<h2>Intro</h2>
+<ul class="simple">
+<li>Your program is slow.<ul>
+<li>If it works, it can work 50 times faster*</li>
+</ul>
+</li>
+<li>If you think you know why it's slow, <strong>you're wrong</strong>*.</li>
+<li>Don't start optimizing your slow code.<ul>
+<li>You will end up optimizing something that's not slow</li>
+</ul>
+</li>
+<li>Start by <strong>profiling</strong>, then optimize.</li>
+</ul>
+<p><span class="footnote">* in most cases</span></p>
+
+</article>
+<article class="slide level-2" id="overview">
+<h2>Overview</h2>
+<ul class="simple">
+<li>Things you should know</li>
+<li>Files</li>
+<li>Tools<ul>
+<li>Feel free to experiment, slides will be online</li>
+</ul>
+</li>
+<li>Appendices: Optimization &amp; links</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="real-world-machines-cache">
+<h2>Real world machines - cache</h2>
+<ul class="simple">
+<li>CPU is fast, RAM is slow, and far away</li>
+<li>Need a cache<ul>
+<li>Cache is fast, RAM is slow<ul>
+<li>Need L2 cache<ul>
+<li>L2 is fast, RAM is slow -&gt; L3<ul>
+<li>...</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<div class="figure align-center">
+<img alt="_images/caches.png" src="_images/caches.png" />
+</div>
+
+</article>
+<article class="slide level-2" id="real-world-machines-branches">
+<h2>Real world machines - branches</h2>
+<ul>
+<li><p class="first">CPUs process instructions in a pipeline</p>
+</li>
+<li><p class="first">Need to <strong>predict</strong> which path a <strong>branch</strong> will take</p>
+</li>
+<li><p class="first">Branch prediction fail example:</p>
+<div class="highlight-python"><div class="highlight"><pre>for (int c = 0; c &lt; arraySize; ++c) {
+    if (data[c] &gt;= 128) sum += data[c];
+}
+</pre></div>
+</div>
+<p>Time for random data: 11.777s</p>
+<p>Time for sorted data: 2.352s</p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="numbers-everyone-should-know-jeff-dean">
+<h2>Numbers everyone should know (Jeff Dean)</h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="22%" />
+<col width="25%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>L1 cache hit (data not in register)</td>
+<td>~0.5 ns</td>
+<td>few cycles</td>
+</tr>
+<tr class="row-even"><td>Branch mispredict</td>
+<td>~5 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Lmax cache reference (L1/L2 miss)</td>
+<td>~7 ns</td>
+<td>~14x L1 hit</td>
+</tr>
+<tr class="row-even"><td>Mutex lock/unlock</td>
+<td>~25 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Main memory reference (Lmax miss)</td>
+<td>~100 ns</td>
+<td>~14x L2 hit</td>
+</tr>
+<tr class="row-even"><td>Compress 1K bytes w/ Snappy (Google)</td>
+<td>~3,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Send 2K bytes over 1 Gbps network</td>
+<td>~20,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Read 4k random read from SSD</td>
+<td>~150,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Read 1 MB sequentially from RAM</td>
+<td>~250,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Round trip within same datacenter</td>
+<td>~500,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Read 1 MB sequentially from SSD</td>
+<td>~1,000,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-even"><td>Disk seek</td>
+<td>~10,000,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+<tr class="row-odd"><td>Read 1 MB sequentially from disk</td>
+<td>~20,000,000 ns</td>
+<td>~80x RAM + seek</td>
+</tr>
+<tr class="row-even"><td>Send packet CA-&gt;Netherlands-&gt;CA</td>
+<td>~150,000,000 ns</td>
+<td>&nbsp;</td>
+</tr>
+</tbody>
+</table>
+
+</article>
+<article class="slide level-1" id="files">
+<h1>Files</h1>
+<table border="1" class="docutils">
+<colgroup>
+<col width="38%" />
+<col width="62%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><tt class="docutils literal"><span class="pre">commands.txt</span></tt></td>
+<td>Commands for copy pasting</td>
+</tr>
+<tr class="row-even"><td><tt class="docutils literal"><span class="pre">small.cfg</span></tt></td>
+<td>Small CFG file for testing</td>
+</tr>
+<tr class="row-odd"><td><tt class="docutils literal"><span class="pre">huge.cfg</span></tt></td>
+<td>Huge CFG file for testing</td>
+</tr>
+<tr class="row-even"><td><tt class="docutils literal"><span class="pre">cfg*.cpp</span></tt>/<tt class="docutils literal"><span class="pre">cfg*.h</span></tt></td>
+<td>Sample code (CFG parser) for profiling</td>
+</tr>
+<tr class="row-odd"><td><tt class="docutils literal"><span class="pre">diy.h</span></tt></td>
+<td>DIY profiling example</td>
+</tr>
+<tr class="row-even"><td><tt class="docutils literal"><span class="pre">LICENSE_1_0.txt</span></tt></td>
+<td>Boost license</td>
+</tr>
+</tbody>
+</table>
+
+</article>
+<article class="slide level-2" id="building-the-binary-to-profile">
+<h2>Building the binary to profile</h2>
+<ul>
+<li><p class="first">Use <tt class="docutils literal"><span class="pre">-std=c++11</span></tt></p>
+</li>
+<li><p class="first">Optimized <tt class="docutils literal"><span class="pre">-O2</span></tt> build w/ debug info <tt class="docutils literal"><span class="pre">-g</span></tt></p>
+</li>
+<li><p class="first">Builds:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="20%" />
+<col width="80%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>Debug:</td>
+<td><tt class="docutils literal"><span class="pre">g++</span> <span class="pre">cfg.cpp</span> <span class="pre">-std=c++11</span> <span class="pre">-g</span> <span class="pre">-o</span> <span class="pre">cfg</span></tt></td>
+</tr>
+<tr class="row-even"><td>Profiling:</td>
+<td><tt class="docutils literal"><span class="pre">g++</span> <span class="pre">cfg.cpp</span> <span class="pre">-std=c++11</span> <span class="pre">-g</span> <span class="pre">-O2</span> <span class="pre">-fno-inline</span> <span class="pre">-o</span> <span class="pre">cfg</span></tt></td>
+</tr>
+<tr class="row-odd"><td>Benchmarking:</td>
+<td><tt class="docutils literal"><span class="pre">g++</span> <span class="pre">cfg.cpp</span> <span class="pre">-std=c++11</span> <span class="pre">-g</span> <span class="pre">-O2</span> <span class="pre">-o</span> <span class="pre">cfg</span></tt></td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p class="first">Running: <tt class="docutils literal"><span class="pre">./cfg</span> <span class="pre">FILE.cfg</span> <span class="pre">[PARSECOUNT]</span></tt></p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="on-inlining">
+<h2>On inlining</h2>
+<ul class="simple">
+<li>Decreases profile readability, improves performance<ul>
+<li>cascading optimizations</li>
+</ul>
+</li>
+<li>Decreases the number of instructions <strong>executed</strong></li>
+<li>Increases <strong>binary size</strong> (may hurt icache)</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="evolution-of-a-cfg-parser">
+<h2>Evolution of a cfg parser</h2>
+<ul>
+<li><p class="first">JIT-ed langs: base performance often <em>very good</em></p>
+<p>but if <em>very good</em> is not <em>good enough</em>, you're fucked</p>
+</li>
+<li><p class="first">Native langs: can always go lower level (until everything's ASM)</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">cfg</span></tt>: &quot;Obvious&quot; C++ solution</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">cfg2</span></tt>: Removing overhead of <tt class="docutils literal"><span class="pre">std::map</span></tt></p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">cfg3</span></tt>: Avoiding copies with string ops using slices</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">cfg4</span></tt>: Decreasing string overhead with plain C strings</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">cfg5</span></tt>: No internal allocations (except loading the file).</p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="id1">
+<h2>Evolution of a cfg parser</h2>
+<table border="1" class="docutils">
+<colgroup>
+<col width="13%" />
+<col width="37%" />
+<col width="50%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">bin</th>
+<th class="head">huge.cfg 10</th>
+<th class="head">small.cfg 50000</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>cfg</td>
+<td>~1290ms</td>
+<td>~1070ms</td>
+</tr>
+<tr class="row-odd"><td>cfg2</td>
+<td>~880ms</td>
+<td>~1010ms</td>
+</tr>
+<tr class="row-even"><td>cfg3</td>
+<td>~700ms</td>
+<td>~700ms</td>
+</tr>
+<tr class="row-odd"><td>cfg4</td>
+<td>~445ms</td>
+<td>~605ms</td>
+</tr>
+<tr class="row-even"><td>cfg5</td>
+<td>~420ms</td>
+<td>~595ms</td>
+</tr>
+</tbody>
+</table>
+<ul class="simple">
+<li>Could go further<ul>
+<li>Dense map or rewriting STL sort/search</li>
+<li>Rewriting <tt class="docutils literal"><span class="pre">strlen</span></tt></li>
+<li>Using SSE intrinsics</li>
+<li>Rewriting chunks of code in ASM</li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-1" id="tools">
+<h1>Tools</h1>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">time</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">valgrind</span></tt> family</li>
+<li><tt class="docutils literal"><span class="pre">perf</span></tt> family</li>
+<li><tt class="docutils literal"><span class="pre">clock_gettime()</span></tt> (DIY)</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="time">
+<h2>time</h2>
+<ul class="simple">
+<li>Duh</li>
+<li>Benchmarking</li>
+<li><tt class="docutils literal"><span class="pre">time</span> <span class="pre">[COMMAND]</span></tt></li>
+</ul>
+<p><tt class="docutils literal"><span class="pre">time</span> <span class="pre">./cfg</span> <span class="pre">small.cfg</span> <span class="pre">200</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre>real 0m0.011s
+user 0m0.009s
+sys  0m0.002s
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="gprof">
+<h2>gprof</h2>
+<p class="centered"><strong>Do not use gprof.</strong>*</p>
+<p><span class="footnote">* except to get function call counts</span></p>
+
+</article>
+<article class="slide level-2" id="valgrind">
+<h2>valgrind</h2>
+<ul class="simple">
+<li>Runs an application in a VM</li>
+<li>Slowly</li>
+<li><tt class="docutils literal"><span class="pre">valgrind</span></tt> tools:<ul>
+<li><tt class="docutils literal"><span class="pre">memcheck</span></tt>   - debugging, not profiling</li>
+<li><tt class="docutils literal"><span class="pre">cachegrind</span></tt> - cache simulation</li>
+<li><tt class="docutils literal"><span class="pre">callgrind</span></tt>  - cache simulation + better profiling</li>
+<li><tt class="docutils literal"><span class="pre">massif</span></tt>     - memory profiling</li>
+<li>...</li>
+</ul>
+</li>
+<li><tt class="docutils literal"><span class="pre">kcachegrind</span></tt> - <tt class="docutils literal"><span class="pre">callgrind</span></tt>/<tt class="docutils literal"><span class="pre">cachegrind</span></tt> viewer</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="callgrind">
+<h2>callgrind</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">valgrind</span> <span class="pre">--tool=callgrind</span> <span class="pre">[COMMAND]</span></tt></li>
+<li>Prints info and dumps <tt class="docutils literal"><span class="pre">callgrind.out.[NUMBER]</span></tt><ul>
+<li>read with <tt class="docutils literal"><span class="pre">kcachegrind</span></tt></li>
+</ul>
+</li>
+<li>The VM catches everything - no need for multiple runs</li>
+<li>Not always realistic (<strong>instructions</strong> are not <strong>cycles</strong>)</li>
+<li>Not useful when making a lot of async / syscalls</li>
+<li><strong>Very</strong> useful otherwise, esp. with <tt class="docutils literal"><span class="pre">kcachegrind</span></tt></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="callgrind-example">
+<h2>callgrind - example</h2>
+<p><tt class="docutils literal"><span class="pre">valgrind</span> <span class="pre">--tool=callgrind</span> <span class="pre">./cfg</span> <span class="pre">huge.cfg</span> <span class="pre">1</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre>I   refs:      757,793,107
+I1  misses:          4,312
+LLi misses:          3,776
+I1  miss rate:         0.0%
+LLi miss rate:         0.0%
+
+D   refs:      358,393,103  (212,485,868 rd + 145,907,235 wr)
+D1  misses:      2,020,202  (  1,864,991 rd +     155,211 wr)
+LLd misses:      1,491,826  (  1,341,624 rd +     150,202 wr)
+D1  miss rate:         0.5% (        0.8%   +         0.1%  )
+LLd miss rate:         0.4% (        0.6%   +         0.1%  )
+
+LL refs:         2,024,514  (  1,869,303 rd +     155,211 wr)
+LL misses:       1,495,602  (  1,345,400 rd +     150,202 wr)
+LL miss rate:          0.1% (        0.1%   +         0.1%  )
+
+Branches:       93,924,200  ( 75,266,948 cond +  18,657,252 ind)
+Mispredicts:     8,760,703  (  4,822,612 cond +   3,938,091 ind)
+Mispred rate:          9.3% (        6.4%     +        21.1%   )
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="kcachegrind">
+<h2>KCachegrind</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">callgrind</span></tt> dump viewer</li>
+<li>Call graph, callee map, per line/instruction events</li>
+<li><strong>Cycle estimation</strong> - more realistic than <strong>instructions</strong></li>
+</ul>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/kcachegrind.png"><img alt="_images/kcachegrind.png" src="_images/kcachegrind.png" style="width: 80%;" /></a>
+</div>
+
+</article>
+<article class="slide level-2" id="kcachegrind-examples">
+<h2>KCachegrind examples</h2>
+<ul class="simple">
+<li>Profile (and see diffs between) versions of <tt class="docutils literal"><span class="pre">cfg.cpp</span></tt></li>
+<li>Top-down:<ul>
+<li>Select <tt class="docutils literal"><span class="pre">main()</span></tt> in the <tt class="docutils literal"><span class="pre">Flat</span> <span class="pre">Profile</span></tt></li>
+<li>View its annotated source code</li>
+<li>Descend into slowest callees</li>
+</ul>
+</li>
+<li>Bottom-up:<ul>
+<li>Sort <tt class="docutils literal"><span class="pre">Flat</span> <span class="pre">Profile</span></tt> by <tt class="docutils literal"><span class="pre">Self</span></tt> to find most expensive function</li>
+<li>Look at its <tt class="docutils literal"><span class="pre">Call</span> <span class="pre">Graph</span></tt> (<tt class="docutils literal"><span class="pre">graphviz</span></tt> needed) or <tt class="docutils literal"><span class="pre">All</span> <span class="pre">Callers</span></tt></li>
+<li>Think about how to optimize or avoid calling it</li>
+</ul>
+</li>
+<li>View two event types at once (<tt class="docutils literal"><span class="pre">View</span> <span class="pre">&gt;</span> <span class="pre">Secondary</span> <span class="pre">Event</span> <span class="pre">Type</span></tt>)</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="massif">
+<h2>massif</h2>
+<ul class="simple">
+<li>Profiles memory allocation/usage</li>
+<li><tt class="docutils literal"><span class="pre">massif-visualizer</span></tt> for GUI</li>
+<li>No time for that now</li>
+</ul>
+<div class="figure align-center">
+<a class="reference internal image-reference" href="_images/massif-visualizer.png"><img alt="_images/massif-visualizer.png" src="_images/massif-visualizer.png" style="width: 80%;" /></a>
+</div>
+
+</article>
+<article class="slide level-2" id="valgrindrc">
+<h2>~/.valgrindrc</h2>
+<div class="code highlight-python"><div class="highlight"><pre>--num-callers=20
+--callgrind:compress-strings=no
+--callgrind:dump-line=yes
+--callgrind:dump-instr=yes
+--callgrind:compress-pos=no
+--callgrind:separate-threads=no
+--callgrind:collect-jumps=yes
+--callgrind:collect-systime=yes
+--callgrind:collect-bus=yes
+--callgrind:cache-sim=yes
+--callgrind:branch-sim=yes
+--callgrind:I1=32768,8,64
+--callgrind:D1=32768,8,64
+--callgrind:LL=262144,8,64
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="perf">
+<h2>perf</h2>
+<ul class="simple">
+<li>Frontend to kernel <tt class="docutils literal"><span class="pre">perf-events</span></tt></li>
+<li>Very comphrehensive</li>
+<li>Virtually nonexistent docs and sorta passable UI</li>
+<li>Measures <strong>real</strong> performance</li>
+<li>Uses HW(CPU-dependent) and kernel counters</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="perf-commands">
+<h2>perf - commands</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">list</span></tt> - list avaiable profiling events</li>
+<li><tt class="docutils literal"><span class="pre">stat</span></tt> - overhead summary, no details (problem detection)</li>
+<li><tt class="docutils literal"><span class="pre">record</span></tt> - record profiling events - <tt class="docutils literal"><span class="pre">report</span></tt> - view results</li>
+<li><tt class="docutils literal"><span class="pre">top</span></tt> (as root) - profile in real time</li>
+<li>...</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="perf-list">
+<h2>perf list</h2>
+<p><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">list</span></tt> lists events <tt class="docutils literal"><span class="pre">perf</span></tt> can record on this machine</p>
+<p>Some interesting events:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="38%" />
+<col width="62%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td>cycles</td>
+<td>CPU cycles spent</td>
+</tr>
+<tr class="row-even"><td>instructions</td>
+<td>Instructions executed</td>
+</tr>
+<tr class="row-odd"><td>branches</td>
+<td>All branches</td>
+</tr>
+<tr class="row-even"><td>branch-misses</td>
+<td>Mispredicted branches (~5ns)</td>
+</tr>
+<tr class="row-odd"><td>L1-Xcache-XXXX-misses</td>
+<td>L1 cache misses (&lt;=~7ns)</td>
+</tr>
+<tr class="row-even"><td>cache-references</td>
+<td>Lmax cache accesses (~7ns)</td>
+</tr>
+<tr class="row-odd"><td>cache-misses</td>
+<td>Lmax cache misses (~100ns)</td>
+</tr>
+<tr class="row-even"><td>stalled-cycles-frontend</td>
+<td>Cycles the CPU frontend is doing nothing</td>
+</tr>
+<tr class="row-odd"><td>stalled-cycles-backend</td>
+<td>Cycles the CPU itself is doing nothing</td>
+</tr>
+</tbody>
+</table>
+
+</article>
+<article class="slide level-2" id="perf-stat">
+<h2>perf stat</h2>
+<p><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">stat</span> <span class="pre">./cfg</span> <span class="pre">small.cfg</span> <span class="pre">1000</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre>Performance counter stats for &#39;./cfg small.cfg 1000&#39;:
+
+        26,554473 task-clock (msec)       #    0,965 CPUs utilized
+               13 context-switches        #    0,490 K/sec
+                5 cpu-migrations          #    0,188 K/sec
+              356 page-faults             #    0,013 M/sec
+       77 375 671 cycles                  #    2,914 GHz
+       27 928 664 stalled-cycles-frontend #   36,09% frontend cycles idle
+  &lt;not supported&gt; stalled-cycles-backend
+      121 540 390 instructions            #    1,57  insns per cycle
+                                          #    0,23  stalled cycles per insn
+       30 904 551 branches                # 1163,817 M/sec
+          356 636 branch-misses           #    1,15% of all branches
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="id2">
+<h2>perf stat</h2>
+<ul>
+<li><p class="first">See <tt class="docutils literal"><span class="pre">commands.txt</span></tt> for an example on how to get cache miss stats</p>
+</li>
+<li><p class="first">Gets precise stats</p>
+</li>
+<li><p class="first">If <tt class="docutils literal"><span class="pre">stalled-cycles-XXX</span></tt> is low</p>
+</li>
+<li><p class="first">How common are branch mispredicts?</p>
+<p>Branch miss count / branch count</p>
+</li>
+<li><p class="first">How common are cache misses?</p>
+<p>Cache miss count / instruction count</p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="perf-record">
+<h2>perf record</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">record</span> <span class="pre">-gF10000</span> <span class="pre">./cfg</span> <span class="pre">huge.cfg</span> <span class="pre">2</span></tt><ul>
+<li>Record cycles at 10000Hz (<tt class="docutils literal"><span class="pre">F</span></tt>)requency with call(<tt class="docutils literal"><span class="pre">g</span></tt>)raph info</li>
+<li>Higher frequency - more distorded profile resulits</li>
+<li>Best to record at low frequency for a long time</li>
+</ul>
+</li>
+<li>Dumps <tt class="docutils literal"><span class="pre">perf.data</span></tt> to view with <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">report</span></tt> (next slide)</li>
+<li>See <tt class="docutils literal"><span class="pre">commands.txt</span></tt> for recording events other than <tt class="docutils literal"><span class="pre">cycles</span></tt></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="perf-report">
+<h2>perf report</h2>
+<ul>
+<li><p class="first"><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">report</span></tt> reads <tt class="docutils literal"><span class="pre">perf.data</span></tt> in current directory</p>
+</li>
+<li><p class="first">Shows all recorded event types (just <tt class="docutils literal"><span class="pre">cycles</span></tt> by default)</p>
+</li>
+<li><p class="first">Can drill down into lines/instructions like <tt class="docutils literal"><span class="pre">kcachegrind</span></tt></p>
+</li>
+<li><p class="first">Controls:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="31%" />
+<col width="69%" />
+</colgroup>
+<tbody valign="top">
+<tr class="row-odd"><td><tt class="docutils literal"><span class="pre">&lt;Right&gt;</span></tt>/<tt class="docutils literal"><span class="pre">&lt;Left&gt;</span></tt></td>
+<td>more details/back</td>
+</tr>
+<tr class="row-even"><td><tt class="docutils literal"><span class="pre">&lt;Up&gt;</span></tt>&gt;/<tt class="docutils literal"><span class="pre">&lt;Down&gt;</span></tt></td>
+<td>next/previous function</td>
+</tr>
+<tr class="row-odd"><td><tt class="docutils literal"><span class="pre">&lt;Enter&gt;</span></tt></td>
+<td>call graph for selected function (pretty useless)</td>
+</tr>
+<tr class="row-even"><td><tt class="docutils literal"><span class="pre">/</span></tt></td>
+<td>Filter functions</td>
+</tr>
+</tbody>
+</table>
+</li>
+<li><p class="first">Note: misses, mispredicts can show a few lines below the source</p>
+<ul class="simple">
+<li>Stalls are not detected immediately by CPU</li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="perf-top">
+<h2>perf top</h2>
+<ul class="simple">
+<li>Real-time <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">record``+``perf</span> <span class="pre">report</span></tt></li>
+<li>Accumulates recorded events<ul>
+<li>According to docs, <tt class="docutils literal"><span class="pre">z</span></tt> resets... docs are out of date</li>
+</ul>
+</li>
+<li>System-wide - drill into a relevant function to select a thread</li>
+<li>Great for intensive event-driven applications (e.g. games)</li>
+<li><strong>Needs to be run as root</strong></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="perf-top-example">
+<h2>perf top - example</h2>
+<ul>
+<li><p class="first">In one terminal (or background) run:</p>
+<p><tt class="docutils literal"><span class="pre">./cfg</span> <span class="pre">huge.cfg</span> <span class="pre">20000</span></tt></p>
+</li>
+<li><p class="first">In another terminal, run:</p>
+<p><tt class="docutils literal"><span class="pre">sudo</span> <span class="pre">perf</span> <span class="pre">top</span> <span class="pre">-F10000</span></tt> (or equivalent; run <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">top</span></tt> as root)</p>
+<ul class="simple">
+<li>No call graph info</li>
+</ul>
+</li>
+<li><p class="first">Terminate the first process when done</p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="diy">
+<h2>DIY</h2>
+<ul class="simple">
+<li>See <tt class="docutils literal"><span class="pre">diy.h</span></tt></li>
+<li>high-precision clocks<ul>
+<li><tt class="docutils literal"><span class="pre">clock_gettime()</span></tt> on POSIX (<tt class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;time.h&gt;</span></tt>)</li>
+</ul>
+</li>
+<li>Use with RAII (ctor+dtor) to record time elapsed in a zone</li>
+<li>Add <tt class="docutils literal"><span class="pre">PRINT_ZONES</span> <span class="pre">=</span> <span class="pre">true</span></tt> to <tt class="docutils literal"><span class="pre">main()</span></tt> in <tt class="docutils literal"><span class="pre">cfg.cpp</span></tt> and run <tt class="docutils literal"><span class="pre">cfg</span></tt></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="diy-why">
+<h2>DIY - why</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">perf</span></tt> offers much better performance w/o instrumentation</li>
+<li>But: <tt class="docutils literal"><span class="pre">perf</span></tt> averages results (even <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">top</span></tt>)</li>
+<li>Problem: rare overhead spikes (e.g. lag in a game)</li>
+<li>Need to keep track of <strong>when</strong> overhead occurs, not only <strong>where</strong></li>
+<li>Instrument code with RAII zones, record overhead individually</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="despiker">
+<h2>Despiker</h2>
+<ul class="simple">
+<li>(DIY) real-time hierarchical frame profiler</li>
+<li>GitHub project(D): <a class="reference external" href="https://github.com/kiith-sa/despiker">https://github.com/kiith-sa/despiker</a></li>
+</ul>
+<video preload="auto" autoplay controls loop poster="../_static/despiker-preview.png">
+   <source src="_static/despiker.webm" type="video/webm">
+</video>
+</article>
+<article class="slide level-1" id="appendix-1-patterns">
+<h1>Appendix 1: Patterns</h1>
+<ul class="simple">
+<li>Non-evil optimizations: don't kill maintainability</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="patterns-stl">
+<h2>Patterns - STL</h2>
+<ul class="simple">
+<li>Avoid <tt class="docutils literal"><span class="pre">std::list</span></tt>. Use <tt class="docutils literal"><span class="pre">std::vector</span></tt>.<ul>
+<li>Avoid linked lists in most cases</li>
+</ul>
+</li>
+<li>Avoid <tt class="docutils literal"><span class="pre">std::map</span></tt>. <tt class="docutils literal"><span class="pre">std::unordered_map</span></tt> sucks too.<ul>
+<li>Use a sorted <tt class="docutils literal"><span class="pre">std::vector</span></tt> if not too cumbersome</li>
+<li>Or find a dense hash map lib</li>
+<li>For small integer-indexed maps, use an index table</li>
+</ul>
+</li>
+<li>Keep in mind the costs of destructors of STL objects</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="patterns-cache">
+<h2>Patterns - Cache</h2>
+<ul class="simple">
+<li>Avoid too many indirections (pointers to pointers to pointers).</li>
+<li>Keep data packed tightly together (alignment).</li>
+</ul>
+
+</article>
+<article class="slide level-1" id="appendix-2-optimizations">
+<h1>Appendix 2: Optimizations</h1>
+<ul class="simple">
+<li>Are not useful unless you profile first</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-polymorphism">
+<h2>Optimizations - polymorphism</h2>
+<ul class="simple">
+<li>Run-time: (Child classes overriding parent's virtual methods)<ul>
+<li>Dereferences <strong>vtable</strong> pointer, then <strong>function</strong> pointer</li>
+<li>Inlining not possible</li>
+<li>On some platforms almost always a cache miss (ARM?)</li>
+</ul>
+</li>
+<li>&quot;Cheap&quot; polymporhism (manual vtable in class body)<ul>
+<li>One dereference instead of two</li>
+</ul>
+</li>
+<li>Compile-time polymporhism with templates<ul>
+<li>Extremely ugly in C++, google <tt class="docutils literal"><span class="pre">C++</span> <span class="pre">crtp</span></tt></li>
+<li>Direct call, allows inlining</li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-cache">
+<h2>Optimizations - cache</h2>
+<ul class="simple">
+<li>Keep things at the first (x86: 64B) cache line</li>
+</ul>
+<div class="highlight-d"><div class="highlight"><pre><span class="k">class</span> <span class="n">Bad</span>
+<span class="p">{</span>
+    <span class="n">uint64_t</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="n">rarelyAccessed</span><span class="p">;</span>
+    <span class="c1">// cache line (64 bytes) boundary</span>
+    <span class="n">std</span><span class="p">::</span><span class="nb">string</span> <span class="n">alwaysAccessed</span><span class="p">:</span>
+<span class="p">}</span>
+
+<span class="k">class</span> <span class="n">Good</span>
+<span class="p">{</span>
+    <span class="c1">// Fits the first cache line</span>
+    <span class="n">std</span><span class="p">::</span><span class="nb">string</span> <span class="n">alwaysAccessed</span><span class="p">:</span>
+    <span class="n">uint64_t</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span> <span class="n">rarelyAccessed</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="optimizations-branch-prediction">
+<h2>Optimizations - branch prediction</h2>
+<p>Bad:</p>
+<div class="highlight-python"><div class="highlight"><pre>if (data[c] &gt;= 128) sum += data[c];
+</pre></div>
+</div>
+<p>Good:</p>
+<div class="highlight-python"><div class="highlight"><pre>int t = (data[c] - 128) &gt;&gt; 31;
+sum += ~t &amp; data[c];
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="optimizations-alloc-time-overhead">
+<h2>Optimizations - alloc (time) overhead</h2>
+<ul>
+<li><p class="first">Preallocate (e.g. <tt class="docutils literal"><span class="pre">std::vector::reserve()</span></tt>)</p>
+</li>
+<li><p class="first">GC if many allocs sum up to little memory</p>
+</li>
+<li><p class="first"><tt class="docutils literal"><span class="pre">alloca</span></tt></p>
+</li>
+<li><p class="first">Fixed-size stack arrays with a heap fallback for large sizes</p>
+</li>
+<li><p class="first">Free lists to recycle instances (next slide)</p>
+</li>
+<li><p class="first">Region allocators</p>
+<p><a class="reference external" href="http://en.wikipedia.org/wiki/Region-based_memory_management">http://en.wikipedia.org/wiki/Region-based_memory_management</a></p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-alloc-overhead">
+<h2>Optimizations - alloc overhead</h2>
+<div class="highlight-cpp"><div class="highlight"><pre><span class="k">class</span> <span class="nc">Foo</span> <span class="p">{</span>
+    <span class="k">static</span> <span class="n">Foo</span><span class="o">*</span> <span class="n">freelist</span><span class="p">;</span> <span class="c1">// Start of free list</span>
+
+    <span class="k">static</span> <span class="n">Foo</span><span class="o">*</span> <span class="nf">alloc</span><span class="p">()</span> <span class="p">{</span>
+        <span class="n">Foo</span><span class="o">*</span> <span class="n">f</span><span class="p">;</span>
+        <span class="k">if</span><span class="p">(</span><span class="n">freelist</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// Reuse from freelist</span>
+            <span class="n">f</span>        <span class="o">=</span> <span class="n">freelist</span><span class="p">;</span>
+            <span class="n">freelist</span> <span class="o">=</span> <span class="n">f</span><span class="p">.</span><span class="n">next</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">else</span> <span class="p">{</span>
+            <span class="n">f</span> <span class="o">=</span> <span class="k">new</span> <span class="n">Foo</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">static</span> <span class="kt">void</span> <span class="nf">dealloc</span><span class="p">(</span><span class="n">Foo</span><span class="o">*</span> <span class="n">f</span><span class="p">)</span> <span class="p">{</span> <span class="c1">// Move to freelist</span>
+        <span class="n">f</span><span class="p">.</span><span class="n">next</span>   <span class="o">=</span> <span class="n">freelist</span><span class="p">;</span>
+        <span class="n">freelist</span> <span class="o">=</span> <span class="n">f</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="n">Foo</span><span class="o">*</span> <span class="n">next</span><span class="p">;</span> <span class="c1">// For use by freelist</span>
+    <span class="c1">// Other Foo code here...</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+
+</article>
+<article class="slide level-2" id="optimizations-compiler-params">
+<h2>Optimizations - compiler params</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">-O2</span></tt>: sane default</li>
+<li><tt class="docutils literal"><span class="pre">-O3</span></tt>: better or worse than <tt class="docutils literal"><span class="pre">-O2</span></tt></li>
+<li><tt class="docutils literal"><span class="pre">-Os</span></tt>: often better than <tt class="docutils literal"><span class="pre">-O2</span></tt></li>
+<li>GCC/Clang have many other optimization flags<ul>
+<li>Different flags work for different applications</li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-inlining">
+<h2>Optimizations - inlining</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">inline</span> <span class="pre">__attribute__((__always_inline_))</span></tt><ul>
+<li>MSVC: <tt class="docutils literal"><span class="pre">__forceinline</span></tt></li>
+<li>still not always inlined</li>
+</ul>
+</li>
+<li><tt class="docutils literal"><span class="pre">__attribute__((__noinline__))</span></tt><ul>
+<li>MSVC: <tt class="docutils literal"><span class="pre">__declspec(noinline)</span></tt></li>
+<li>sometimes inlined</li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-intrinsics">
+<h2>Optimizations - intrinsics</h2>
+<ul class="simple">
+<li>Very compiler/architecture specific</li>
+<li>Do 4/8/16 operations per cycle</li>
+<li>All x64 CPUs support SSE2<ul>
+<li>128b (4 floats/ints, 8 shorts, 16 bytes)</li>
+</ul>
+</li>
+<li>New-ish CPUs support AVX<ul>
+<li>256b, 512b (AVX2)</li>
+</ul>
+</li>
+<li>ARM: NEON</li>
+<li><a class="reference external" href="http://www.linuxjournal.com/content/introduction-gcc-compiler-intrinsics-vector-processing?page=0,0">http://www.linuxjournal.com/content/introduction-gcc-compiler-intrinsics-vector-processing?page=0,0</a></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-int-types">
+<h2>Optimizations - int types</h2>
+<ul class="simple">
+<li>Use the native 32/64bit type<ul>
+<li>unless cache perf can be improved (often with big int arrays)</li>
+</ul>
+</li>
+<li><tt class="docutils literal"><span class="pre">#include</span> <span class="pre">&lt;cstdint&gt;</span></tt>: <a class="reference external" href="http://en.cppreference.com/w/cpp/types/integer">http://en.cppreference.com/w/cpp/types/integer</a></li>
+<li>16bit seems to result in worst perf on x86<ul>
+<li>But not if the saved memory reduces cache misses</li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="optimizations-0-andrei-alexandrescu">
+<h2>Optimizations - 0 (Andrei Alexandrescu)</h2>
+<ul class="simple">
+<li>0 is special (on x86, and supposedly on ARM too)</li>
+<li>Specific instructions handle comparisons with 0</li>
+<li>Make the most common values 0 so you can compare with 0<ul>
+<li>E.g. default value of an <tt class="docutils literal"><span class="pre">enum</span></tt></li>
+</ul>
+</li>
+</ul>
+
+</article>
+<article class="slide level-1" id="appendix-3-links">
+<h1>Appendix 3: Links</h1>
+
+</article>
+<article class="slide level-2" id="links-perf">
+<h2>Links - perf</h2>
+<ul class="simple">
+<li><a class="reference external" href="https://perf.wiki.kernel.org/index.php/Tutorial">https://perf.wiki.kernel.org/index.php/Tutorial</a></li>
+<li><a class="reference external" href="http://paolobernardi.wordpress.com/2012/08/07/playing-around-with-perf/">http://paolobernardi.wordpress.com/2012/08/07/playing-around-with-perf/</a></li>
+<li><a class="reference external" href="http://web.eece.maine.edu/~vweaver/projects/perf_events/perf_event_open.html">http://web.eece.maine.edu/~vweaver/projects/perf_events/perf_event_open.html</a></li>
+<li><a class="reference external" href="http://www.brendangregg.com/perf.html">http://www.brendangregg.com/perf.html</a></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="links-other-linux-profilers">
+<h2>Links - other Linux profilers</h2>
+<ul class="simple">
+<li>RotateRight Zoom (commercial): <a class="reference external" href="http://www.rotateright.com/">http://www.rotateright.com/</a></li>
+<li>OProfile (open source):        <a class="reference external" href="http://oprofile.sourceforge.net/news/">http://oprofile.sourceforge.net/news/</a></li>
+<li>Intel VTune (commercial):      <a class="reference external" href="https://software.intel.com/en-us/intel-vtune-amplifier-xe">https://software.intel.com/en-us/intel-vtune-amplifier-xe</a></li>
+<li>AMD CodeXL (freeware):         <a class="reference external" href="http://developer.amd.com/tools-and-sdks/opencl-zone/codexl/">http://developer.amd.com/tools-and-sdks/opencl-zone/codexl/</a></li>
+<li>SysProf (open source):         <a class="reference external" href="http://sysprof.com/">http://sysprof.com/</a></li>
+</ul>
+
+</article>
+<article class="slide level-2" id="links-optimization">
+<h2>Links - optimization</h2>
+<ul>
+<li><p class="first">Branch prediction:</p>
+<p><a class="reference external" href="http://stackoverflow.com/questions/11227809/why-is-processing-a-sorted-array-faster-than-an-unsorted-array/11227902#11227902">http://stackoverflow.com/questions/11227809/why-is-processing-a-sorted-array-faster-than-an-unsorted-array/11227902#11227902</a></p>
+</li>
+<li><p class="first">Drepper (Cache and memory)</p>
+<p><a class="reference external" href="http://www.akkadia.org/drepper/cpumemory.pdf">http://www.akkadia.org/drepper/cpumemory.pdf</a></p>
+</li>
+<li><p class="first">Fog</p>
+<p><a class="reference external" href="http://agner.org/optimize/">http://agner.org/optimize/</a></p>
+<p><a class="reference external" href="http://www.agner.org/optimize/blog/">http://www.agner.org/optimize/blog/</a></p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="links-gcc-optimization-features">
+<h2>Links - GCC optimization features</h2>
+<ul class="simple">
+<li>Often compatible with Clang</li>
+</ul>
+<p><a class="reference external" href="https://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html#Function-Attributes">https://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html#Function-Attributes</a></p>
+<p><a class="reference external" href="https://gcc.gnu.org/projects/prefetch.html">https://gcc.gnu.org/projects/prefetch.html</a></p>
+
+</article>
+<article class="slide level-2" id="links-intel-amd-manuals">
+<h2>Links - Intel/AMD manuals</h2>
+<ul>
+<li><p class="first">Intel Software Optimization Reference Manual:</p>
+<p><a class="reference external" href="http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf">http://www.intel.com/content/dam/www/public/us/en/documents/manuals/64-ia-32-architectures-optimization-manual.pdf</a></p>
+</li>
+<li><p class="first">Software Optimization Guide for AMD Family 15h (and newer...):</p>
+<p><a class="reference external" href="http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/03/47414_15h_sw_opt_guide.pdf">http://amd-dev.wpengine.netdna-cdn.com/wordpress/media/2012/03/47414_15h_sw_opt_guide.pdf</a></p>
+</li>
+<li><p class="first">All Intel software developer manuals:</p>
+<p><a class="reference external" href="http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html">http://www.intel.com/content/www/us/en/processors/architectures-software-developer-manuals.html</a></p>
+</li>
+<li><p class="first">All AMD software developer manuals:</p>
+<p><a class="reference external" href="http://developer.amd.com/resources/documentation-articles/developer-guides-manuals/">http://developer.amd.com/resources/documentation-articles/developer-guides-manuals/</a></p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-2" id="links-cppcon">
+<h2>Links - CPPCon</h2>
+<ul>
+<li><p class="first">Alexandrescu:</p>
+<p><a class="reference external" href="https://www.youtube.com/watch?v=Qq_WaiwzOtI">https://www.youtube.com/watch?v=Qq_WaiwzOtI</a></p>
+</li>
+<li><p class="first">Carruth:</p>
+<p><a class="reference external" href="https://www.youtube.com/watch?v=fHNmRkzxHWs&amp;list=UUMlGfpWw-RUdWX_JbLCukXg">https://www.youtube.com/watch?v=fHNmRkzxHWs&amp;list=UUMlGfpWw-RUdWX_JbLCukXg</a></p>
+</li>
+<li><p class="first">All: <a class="reference external" href="https://www.youtube.com/user/CppCon/videos">https://www.youtube.com/user/CppCon/videos</a></p>
+</li>
+</ul>
+
+</article>
+<article class="slide level-1" id="it-s-over">
+<h1>It's over</h1>
+
+</article>
+
+
+</section>
+
+<section id="slide_notes">
+
+</section>
+
+  </body>
+</html>
