@@ -8,6 +8,7 @@
 .. linux-tools-common / linux-tools-generic
 .. some sort of diff
 
+
 .. role:: footnote
 
 =========
@@ -16,6 +17,8 @@ Profiling
 
 :Author:
     Ferdinand Majerech
+
+https://github.com/kiith-sa/profiling
 
 
 -----
@@ -815,3 +818,5 @@ Links - CPPCon
 =========
 It's over
 =========
+
+https://github.com/kiith-sa/profiling
