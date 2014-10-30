@@ -442,6 +442,7 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 </article>
 <article class="slide level-2" id="kcachegrind-examples">
 <h2>KCachegrind examples</h2>
+<p><tt class="docutils literal"><span class="pre">kcachegrind</span> <span class="pre">callgrind.out.[NUMBER]</span></tt></p>
 <ul class="simple">
 <li>Profile (and see diffs between) versions of <tt class="docutils literal"><span class="pre">cfg.cpp</span></tt></li>
 <li>Top-down:<ul>
@@ -506,10 +507,10 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 <article class="slide level-2" id="perf-commands">
 <h2>perf - commands</h2>
 <ul class="simple">
-<li><tt class="docutils literal"><span class="pre">list</span></tt> - list avaiable profiling events</li>
-<li><tt class="docutils literal"><span class="pre">stat</span></tt> - overhead summary, no details (problem detection)</li>
+<li><tt class="docutils literal"><span class="pre">list</span></tt> - list profiling events</li>
+<li><tt class="docutils literal"><span class="pre">stat</span></tt> - overhead summary</li>
 <li><tt class="docutils literal"><span class="pre">record</span></tt> - record profiling events - <tt class="docutils literal"><span class="pre">report</span></tt> - view results</li>
-<li><tt class="docutils literal"><span class="pre">top</span></tt> (as root) - profile in real time</li>
+<li><tt class="docutils literal"><span class="pre">top</span></tt> - profile in real time</li>
 <li>...</li>
 </ul>
 
@@ -649,7 +650,7 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 <article class="slide level-2" id="perf-top">
 <h2>perf top</h2>
 <ul class="simple">
-<li>Real-time <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">record``+``perf</span> <span class="pre">report</span></tt></li>
+<li>Real-time <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">record</span></tt> + <tt class="docutils literal"><span class="pre">perf</span> <span class="pre">report</span></tt></li>
 <li>Accumulates recorded events<ul>
 <li>According to docs, <tt class="docutils literal"><span class="pre">z</span></tt> resets... docs are out of date</li>
 </ul>

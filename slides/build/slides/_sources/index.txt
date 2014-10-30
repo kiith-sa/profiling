@@ -294,6 +294,8 @@ KCachegrind
 KCachegrind examples
 --------------------
 
+``kcachegrind callgrind.out.[NUMBER]``
+
 * Profile (and see diffs between) versions of ``cfg.cpp``
 
 * Top-down:
@@ -359,10 +361,10 @@ perf
 perf - commands
 ---------------
 
-* ``list`` - list avaiable profiling events
-* ``stat`` - overhead summary, no details (problem detection)
+* ``list`` - list profiling events
+* ``stat`` - overhead summary
 * ``record`` - record profiling events - ``report`` - view results
-* ``top`` (as root) - profile in real time
+* ``top`` - profile in real time
 * ...
 
 
@@ -462,7 +464,7 @@ perf report
 perf top
 --------
 
-* Real-time ``perf record``+``perf report``
+* Real-time ``perf record`` + ``perf report``
 * Accumulates recorded events
 
   - According to docs, ``z`` resets... docs are out of date
