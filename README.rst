@@ -2,12 +2,8 @@
 Profiling
 =========
 
-This is a bunch of slides about profiling on Linux and some sample files.
-
-
-Text of the slides can be read directly `here
-<https://github.com/kiith-sa/profiling/blob/master/slides/source/index.rst>`_.
-
+This is a `bunch of slides <http://defenestrate.eu/_static/profiling-slides/index.html>`_
+about profiling on Linux and some sample files.
 
 Directory structure:
 
