@@ -58,17 +58,20 @@
 </article>
 <article class="slide level-2" id="intro">
 <h2>Intro</h2>
+<ul>
+<li><p class="first">Your program is slow.</p>
 <ul class="simple">
-<li>Your program is slow.<ul>
-<li>If it works, it can work 50 times faster*</li>
+<li>Even if it's 'fast enough', it wastes energy</li>
+<li>If it works, it can probably work about 50 times faster*</li>
 </ul>
 </li>
-<li>If you think you know why it's slow, <strong>you're wrong</strong>*.</li>
-<li>Don't start optimizing your slow code.<ul>
-<li>You will end up optimizing something that's not slow</li>
-</ul>
+<li><p class="first">If you think you know why it's slow, <strong>you're wrong</strong>*.</p>
 </li>
-<li>Start by <strong>profiling</strong>, then optimize.</li>
+<li><p class="first">Don't start by optimizing your slow code;</p>
+<p>You will end up optimizing something that's not slow</p>
+</li>
+<li><p class="first">Start by <strong>profiling</strong>, <em>then</em> optimize</p>
+</li>
 </ul>
 <p><span class="footnote">* in most cases</span></p>
 
@@ -116,14 +119,14 @@
 </li>
 <li><p class="first">Need to <strong>predict</strong> which path a <strong>branch</strong> will take</p>
 </li>
-<li><p class="first">Branch prediction fail example:</p>
+<li><p class="first">Branch prediction fail example (stack overflow, Java):</p>
 <div class="highlight-python"><div class="highlight"><pre>for (int c = 0; c &lt; arraySize; ++c) {
     if (data[c] &gt;= 128) sum += data[c];
 }
 </pre></div>
 </div>
-<p>Time for random data: 11.777s</p>
-<p>Time for sorted data: 2.352s</p>
+<p>Time for random data: <tt class="docutils literal"><span class="pre">11.777s</span></tt></p>
+<p>Time for sorted data: <tt class="docutils literal"><span class="pre">2.352s</span></tt></p>
 </li>
 </ul>
 
@@ -197,8 +200,8 @@
 </table>
 
 </article>
-<article class="slide level-1" id="files">
-<h1>Files</h1>
+<article class="slide level-1" id="files-workshop">
+<h1>Files (workshop)</h1>
 <table border="1" class="docutils">
 <colgroup>
 <col width="38%" />
@@ -227,8 +230,8 @@
 </table>
 
 </article>
-<article class="slide level-2" id="building-the-binary-to-profile">
-<h2>Building the binary to profile</h2>
+<article class="slide level-2" id="building-the-binary-to-profile-workshop">
+<h2>Building the binary to profile (workshop)</h2>
 <ul>
 <li><p class="first">Use <tt class="docutils literal"><span class="pre">-std=c++11</span></tt></p>
 </li>
@@ -274,7 +277,7 @@
 <h2>Evolution of a cfg parser</h2>
 <ul>
 <li><p class="first">JIT-ed langs: base performance often <em>very good</em></p>
-<p>but if <em>very good</em> is not <em>good enough</em>, you're fucked</p>
+<p>but if <em>very good</em> is not <em>good enough</em>, you're fscked</p>
 </li>
 <li><p class="first">Native langs: can always go lower level (until everything's ASM)</p>
 </li>
@@ -374,7 +377,7 @@ sys  0m0.002s
 <h2>valgrind</h2>
 <ul class="simple">
 <li>Runs an application in a VM</li>
-<li>Slowly</li>
+<li><strong>Slowly</strong></li>
 <li><tt class="docutils literal"><span class="pre">valgrind</span></tt> tools:<ul>
 <li><tt class="docutils literal"><span class="pre">memcheck</span></tt>   - debugging, not profiling</li>
 <li><tt class="docutils literal"><span class="pre">cachegrind</span></tt> - cache simulation</li>
@@ -473,8 +476,8 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 </div>
 
 </article>
-<article class="slide level-2" id="valgrindrc">
-<h2>~/.valgrindrc</h2>
+<article class="slide level-2" id="valgrindrc-workshop">
+<h2>~/.valgrindrc (workshop)</h2>
 <div class="code highlight-python"><div class="highlight"><pre>--num-callers=20
 --callgrind:compress-strings=no
 --callgrind:dump-line=yes
@@ -501,6 +504,7 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 <li>Virtually nonexistent docs and sorta passable UI</li>
 <li>Measures <strong>real</strong> performance</li>
 <li>Uses HW(CPU-dependent) and kernel counters</li>
+<li><strong>Do not try this in a VM</strong></li>
 </ul>
 
 </article>
@@ -518,6 +522,13 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 <article class="slide level-2" id="perf-list">
 <h2>perf list</h2>
 <p><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">list</span></tt> lists events <tt class="docutils literal"><span class="pre">perf</span></tt> can record on this machine</p>
+<div class="figure align-center">
+<img alt="_images/perf_list.png" src="_images/perf_list.png" />
+</div>
+
+</article>
+<article class="slide level-2" id="id2">
+<h2>perf list</h2>
 <p>Some interesting events:</p>
 <table border="1" class="docutils">
 <colgroup>
@@ -558,25 +569,13 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 </article>
 <article class="slide level-2" id="perf-stat">
 <h2>perf stat</h2>
-<p><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">stat</span> <span class="pre">./cfg</span> <span class="pre">small.cfg</span> <span class="pre">1000</span></tt>:</p>
-<div class="highlight-python"><div class="highlight"><pre>Performance counter stats for &#39;./cfg small.cfg 1000&#39;:
-
-        26,554473 task-clock (msec)       #    0,965 CPUs utilized
-               13 context-switches        #    0,490 K/sec
-                5 cpu-migrations          #    0,188 K/sec
-              356 page-faults             #    0,013 M/sec
-       77 375 671 cycles                  #    2,914 GHz
-       27 928 664 stalled-cycles-frontend #   36,09% frontend cycles idle
-  &lt;not supported&gt; stalled-cycles-backend
-      121 540 390 instructions            #    1,57  insns per cycle
-                                          #    0,23  stalled cycles per insn
-       30 904 551 branches                # 1163,817 M/sec
-          356 636 branch-misses           #    1,15% of all branches
-</pre></div>
+<p><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">stat</span> <span class="pre">./tharsis-game</span> <span class="pre">--threads=3</span></tt>:</p>
+<div class="figure align-center">
+<img alt="_images/perf_stat.png" src="_images/perf_stat.png" />
 </div>
 
 </article>
-<article class="slide level-2" id="id2">
+<article class="slide level-2" id="id3">
 <h2>perf stat</h2>
 <ul>
 <li><p class="first">See <tt class="docutils literal"><span class="pre">commands.txt</span></tt> for an example on how to get cache miss stats</p>
@@ -610,13 +609,18 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 </article>
 <article class="slide level-2" id="perf-report">
 <h2>perf report</h2>
+<ul class="simple">
+<li><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">report</span></tt> reads <tt class="docutils literal"><span class="pre">perf.data</span></tt> in current directory</li>
+<li>Shows all recorded event types (just <tt class="docutils literal"><span class="pre">cycles</span></tt> by default)</li>
+<li>Can drill down into lines/instructions like <tt class="docutils literal"><span class="pre">kcachegrind</span></tt></li>
+</ul>
+<video width="832" height="390" preload="auto" autoplay controls loop>
+   <source src="_static/perf_report.webm" type="video/webm">
+</video>
+</article>
+<article class="slide level-2" id="id4">
+<h2>perf report</h2>
 <ul>
-<li><p class="first"><tt class="docutils literal"><span class="pre">perf</span> <span class="pre">report</span></tt> reads <tt class="docutils literal"><span class="pre">perf.data</span></tt> in current directory</p>
-</li>
-<li><p class="first">Shows all recorded event types (just <tt class="docutils literal"><span class="pre">cycles</span></tt> by default)</p>
-</li>
-<li><p class="first">Can drill down into lines/instructions like <tt class="docutils literal"><span class="pre">kcachegrind</span></tt></p>
-</li>
 <li><p class="first">Controls:</p>
 <table border="1" class="docutils">
 <colgroup>
@@ -639,9 +643,9 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 </tbody>
 </table>
 </li>
-<li><p class="first">Note: misses, mispredicts can show a few lines below the source</p>
+<li><p class="first">Misses, mispredicts can show a few instructions <strong>after</strong> the cause</p>
 <ul class="simple">
-<li>Stalls are not detected immediately by CPU</li>
+<li>Stalls not detected immediately by CPU</li>
 </ul>
 </li>
 </ul>
@@ -708,7 +712,7 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 <li>(DIY) real-time hierarchical frame profiler</li>
 <li>GitHub project(D): <a class="reference external" href="https://github.com/kiith-sa/despiker">https://github.com/kiith-sa/despiker</a></li>
 </ul>
-<video preload="auto" autoplay controls loop poster="../_static/despiker-preview.png">
+<video width="670" preload="auto" autoplay controls loop poster="../_static/despiker-preview.png">
    <source src="_static/despiker.webm" type="video/webm">
 </video>
 </article>
@@ -723,7 +727,7 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 <h2>Patterns - STL</h2>
 <ul class="simple">
 <li>Avoid <tt class="docutils literal"><span class="pre">std::list</span></tt>. Use <tt class="docutils literal"><span class="pre">std::vector</span></tt>.<ul>
-<li>Avoid linked lists in most cases</li>
+<li>Avoid linked lists in general</li>
 </ul>
 </li>
 <li>Avoid <tt class="docutils literal"><span class="pre">std::map</span></tt>. <tt class="docutils literal"><span class="pre">std::unordered_map</span></tt> sucks too.<ul>
@@ -796,15 +800,13 @@ Mispred rate:          9.3% (        6.4%     +        21.1%   )
 </article>
 <article class="slide level-2" id="optimizations-branch-prediction">
 <h2>Optimizations - branch prediction</h2>
-<p>Bad:</p>
-<div class="highlight-python"><div class="highlight"><pre>if (data[c] &gt;= 128) sum += data[c];
-</pre></div>
-</div>
-<p>Good:</p>
-<div class="highlight-python"><div class="highlight"><pre>int t = (data[c] - 128) &gt;&gt; 31;
-sum += ~t &amp; data[c];
-</pre></div>
-</div>
+<ul>
+<li><p class="first">Instead of <tt class="docutils literal"><span class="pre">if(A)</span> <span class="pre">{</span> <span class="pre">b</span> <span class="pre">+=</span> <span class="pre">c;</span> <span class="pre">}</span></tt>:</p>
+</li>
+<li><p class="first">Find a way to get the same effect on <tt class="docutils literal"><span class="pre">b</span></tt> without an <tt class="docutils literal"><span class="pre">if()</span></tt></p>
+<p>E.g. in the above case <tt class="docutils literal"><span class="pre">b</span></tt> must stay unchanged if <tt class="docutils literal"><span class="pre">A</span> <span class="pre">==</span> <span class="pre">false</span></tt></p>
+</li>
+</ul>
 
 </article>
 <article class="slide level-2" id="optimizations-alloc-time-overhead">

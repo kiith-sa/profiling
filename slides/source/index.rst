@@ -27,14 +27,15 @@ Intro
 
 * Your program is slow.
 
-  - If it works, it can work 50 times faster\*
+  - Even if it's 'fast enough', it wastes energy
+  - If it works, it can probably work about 50 times faster\*
 * If you think you know why it's slow, **you're wrong**\*.
 
-* Don't start optimizing your slow code.
+* Don't start by optimizing your slow code;
 
-  - You will end up optimizing something that's not slow
+  You will end up optimizing something that's not slow
 
-* Start by **profiling**, then optimize.
+* Start by **profiling**, *then* optimize
 
 :footnote:`\* in most cases`
 
@@ -76,15 +77,15 @@ Real world machines - branches
 * CPUs process instructions in a pipeline
 
 * Need to **predict** which path a **branch** will take
-* Branch prediction fail example::
+* Branch prediction fail example (stack overflow, Java)::
 
      for (int c = 0; c < arraySize; ++c) {
          if (data[c] >= 128) sum += data[c];
      }
 
-  Time for random data: 11.777s
+  Time for random data: ``11.777s``
 
-  Time for sorted data: 2.352s
+  Time for sorted data: ``2.352s``
 
 ----------------------------------------
 Numbers everyone should know (Jeff Dean)
@@ -108,9 +109,9 @@ Send packet CA->Netherlands->CA      ~150,000,000 ns
 ==================================== =============== =================
 
 
-=====
-Files
-=====
+================
+Files (workshop)
+================
 
 ======================= ======================================
 ``commands.txt``        Commands for copy pasting
@@ -121,9 +122,9 @@ Files
 ``LICENSE_1_0.txt``     Boost license
 ======================= ======================================
 
-------------------------------
-Building the binary to profile
-------------------------------
+-----------------------------------------
+Building the binary to profile (workshop)
+-----------------------------------------
 
 * Use ``-std=c++11``
 * Optimized ``-O2`` build w/ debug info ``-g``
@@ -156,7 +157,7 @@ Evolution of a cfg parser
 
 * JIT-ed langs: base performance often *very good*
 
-  but if *very good* is not *good enough*, you're fucked
+  but if *very good* is not *good enough*, you're fscked
 
 * Native langs: can always go lower level (until everything's ASM)
 
@@ -227,7 +228,7 @@ valgrind
 --------
 
 * Runs an application in a VM
-* Slowly
+* **Slowly**
 
 * ``valgrind`` tools:
 
@@ -325,9 +326,9 @@ massif
   :width: 80%
   :align: center
 
--------------
-~/.valgrindrc
--------------
+------------------------
+~/.valgrindrc (workshop)
+------------------------
 
 .. code::
 
@@ -355,6 +356,7 @@ perf
 * Virtually nonexistent docs and sorta passable UI
 * Measures **real** performance
 * Uses HW(CPU-dependent) and kernel counters
+* **Do not try this in a VM**
 
 
 ---------------
@@ -374,6 +376,13 @@ perf list
 
 ``perf list`` lists events ``perf`` can record on this machine
 
+.. figure:: /_static/perf_list.png
+  :align: center
+
+---------
+perf list
+---------
+
 Some interesting events:
 
 ========================= ========================================
@@ -392,21 +401,10 @@ stalled-cycles-backend    Cycles the CPU itself is doing nothing
 perf stat
 ---------
 
-``perf stat ./cfg small.cfg 1000``::
+``perf stat ./tharsis-game --threads=3``:
 
-   Performance counter stats for './cfg small.cfg 1000':
-
-           26,554473 task-clock (msec)       #    0,965 CPUs utilized
-                  13 context-switches        #    0,490 K/sec
-                   5 cpu-migrations          #    0,188 K/sec
-                 356 page-faults             #    0,013 M/sec
-          77 375 671 cycles                  #    2,914 GHz
-          27 928 664 stalled-cycles-frontend #   36,09% frontend cycles idle
-     <not supported> stalled-cycles-backend
-         121 540 390 instructions            #    1,57  insns per cycle
-                                             #    0,23  stalled cycles per insn
-          30 904 551 branches                # 1163,817 M/sec
-             356 636 branch-misses           #    1,15% of all branches
+.. figure:: /_static/perf_stat.png
+  :align: center
 
 ---------
 perf stat
@@ -447,6 +445,17 @@ perf report
 * ``perf report`` reads ``perf.data`` in current directory
 * Shows all recorded event types (just ``cycles`` by default)
 * Can drill down into lines/instructions like ``kcachegrind``
+
+.. raw:: html
+
+   <video width="832" height="390" preload="auto" autoplay controls loop>
+      <source src="_static/perf_report.webm" type="video/webm">
+   </video>
+
+-----------
+perf report
+-----------
+
 * Controls: 
 
   ====================== =================================================
@@ -456,9 +465,9 @@ perf report
   ``/``                  Filter functions
   ====================== =================================================
 
-* Note: misses, mispredicts can show a few lines below the source
+* Misses, mispredicts can show a few instructions **after** the cause
 
-  - Stalls are not detected immediately by CPU
+  - Stalls not detected immediately by CPU
 
 --------
 perf top
@@ -523,7 +532,7 @@ Despiker
 
 .. raw:: html
 
-   <video preload="auto" autoplay controls loop poster="../_static/despiker-preview.png">
+   <video width="670" preload="auto" autoplay controls loop poster="../_static/despiker-preview.png">
       <source src="_static/despiker.webm" type="video/webm">
    </video>
 
@@ -540,7 +549,7 @@ Patterns - STL
 
 * Avoid ``std::list``. Use ``std::vector``.
 
-  - Avoid linked lists in most cases
+  - Avoid linked lists in general
 
 * Avoid ``std::map``. ``std::unordered_map`` sucks too.
 
@@ -611,14 +620,20 @@ Optimizations - cache
 Optimizations - branch prediction
 ---------------------------------
 
-Bad::
+* Instead of ``if(A) { b += c; }``:
 
-   if (data[c] >= 128) sum += data[c];
+* Find a way to get the same effect on ``b`` without an ``if()``
 
-Good::
+  E.g. in the above case ``b`` must stay unchanged if ``A == false``
 
-   int t = (data[c] - 128) >> 31;
-   sum += ~t & data[c];
+.. .. Bad::
+.. 
+.. ..    if (data[c] >= 128) sum += data[c];
+.. 
+.. .. Good::
+.. 
+.. ..    int t = (data[c] - 128) >> 31;
+.. ..    sum += ~t & data[c];
 
 -------------------------------------
 Optimizations - alloc (time) overhead

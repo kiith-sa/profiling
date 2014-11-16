@@ -14,7 +14,7 @@ body
     top: 50%;
     margin-left: -450px;
     margin-top: -350px;
-    padding: 40px 40px;
+    padding: 16px 32px;
 
 }
 
@@ -209,7 +209,7 @@ table.docutils td, th
 
 video 
 {
-    max-width: 74%;
+    /* max-width: 150%; */
     display: block;
     margin: 0 auto;
     padding: 0;
